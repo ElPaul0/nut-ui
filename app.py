@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import subprocess
@@ -114,18 +115,33 @@ def init_db() -> None:
             """CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ts TEXT,
-                message TEXT
+                message TEXT,
+                event_key TEXT,
+                event_params TEXT
             )"""
         )
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(events)")}
+        if "event_key" not in cols:
+            conn.execute("ALTER TABLE events ADD COLUMN event_key TEXT")
+        if "event_params" not in cols:
+            conn.execute("ALTER TABLE events ADD COLUMN event_params TEXT")
 
 
-def log_event(msg: str) -> None:
+def log_event(key: str, **params) -> str:
+    """Store a localizable event; return the notify-lang message string."""
+    msg = t(key, **params)
     with sqlite3.connect(DB) as conn:
         conn.execute(
-            "INSERT INTO events (ts, message) VALUES (?, ?)",
-            (datetime.now().strftime("%d/%m %H:%M:%S"), msg),
+            "INSERT INTO events (ts, message, event_key, event_params) VALUES (?, ?, ?, ?)",
+            (
+                datetime.now().strftime("%d/%m %H:%M:%S"),
+                msg,
+                key,
+                json.dumps(params, ensure_ascii=False),
+            ),
         )
-    print(f"[EVENT] {msg}")
+    print(f"[EVENT] {key} {params} → {msg}")
+    return msg
 
 
 def get_ups_data() -> dict:
@@ -164,28 +180,24 @@ def monitor() -> None:
             runtime = 0
 
         if "OB" in status and last_status["status"] != "OB":
-            msg = t("power_loss", charge=charge)
-            log_event(msg)
+            msg = log_event("power_loss", charge=charge)
             notify(msg, priority="high", tags="warning,zap")
             last_status["status"] = "OB"
             last_status["last_warn"] = time.time()
 
         elif "OB" in status:
             if time.time() - last_status["last_warn"] >= 300:
-                msg = t("on_battery", charge=charge, runtime=runtime)
-                log_event(msg)
+                msg = log_event("on_battery", charge=charge, runtime=runtime)
                 notify(msg, priority="default", tags="battery")
                 last_status["last_warn"] = time.time()
 
         elif "OL" in status and last_status["status"] == "OB":
-            msg = t("power_restored", charge=charge)
-            log_event(msg)
+            msg = log_event("power_restored", charge=charge)
             notify(msg, priority="default", tags="white_check_mark")
             last_status["status"] = "OL"
 
         elif "LB" in status:
-            msg = t("low_battery", charge=charge)
-            log_event(msg)
+            msg = log_event("low_battery", charge=charge)
             notify(msg, priority="urgent", tags="rotating_light,skull")
 
         time.sleep(10)
@@ -211,16 +223,32 @@ def api_status():
 def api_events():
     with sqlite3.connect(DB) as conn:
         rows = conn.execute(
-            "SELECT ts, message FROM events ORDER BY id DESC LIMIT 100"
+            "SELECT ts, message, event_key, event_params FROM events ORDER BY id DESC LIMIT 100"
         ).fetchall()
-    return jsonify([{"ts": r[0], "message": r[1]} for r in rows])
+    out = []
+    for ts, message, event_key, event_params in rows:
+        params = {}
+        if event_params:
+            try:
+                params = json.loads(event_params)
+            except json.JSONDecodeError:
+                params = {}
+        out.append(
+            {
+                "ts": ts,
+                "message": message,
+                "key": event_key,
+                "params": params,
+            }
+        )
+    return jsonify(out)
 
 
 @app.route("/api/test-notify")
 def test_notify():
-    msg = t("test", ts=datetime.now().strftime("%d/%m %H:%M:%S"))
+    ts = datetime.now().strftime("%d/%m %H:%M:%S")
+    msg = log_event("test", ts=ts)
     ok = notify(msg, priority="default", tags="test_tube")
-    log_event(msg)
     return jsonify({"sent": ok, "message": msg})
 
 

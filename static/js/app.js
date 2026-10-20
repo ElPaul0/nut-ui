@@ -127,6 +127,55 @@
       .replace(/"/g, "&quot;");
   }
 
+  function formatTemplate(template, params) {
+    return String(template).replace(/\{(\w+)\}/g, (_, key) =>
+      params[key] != null ? String(params[key]) : ""
+    );
+  }
+
+  function inferLegacyEvent(message) {
+    const m = String(message || "");
+    const charge = (m.match(/(\d+|\?)%/) || [])[1] || "?";
+
+    if (/Batterie faible|Low battery|Shutdown imminent/i.test(m)) {
+      return { key: "low_battery", params: { charge } };
+    }
+    if (/Secteur rétabli|Mains restored/i.test(m)) {
+      return { key: "power_restored", params: { charge } };
+    }
+    if (/Sur batterie|On battery/i.test(m)) {
+      const runtime = (m.match(/(\d+)\s*min/i) || [])[1] || "?";
+      return { key: "on_battery", params: { charge, runtime } };
+    }
+    if (/Coupure secteur|Power failure/i.test(m)) {
+      return { key: "power_loss", params: { charge } };
+    }
+    if (/Test notification/i.test(m)) {
+      const ts = (m.match(/(\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})/) || [])[1] || "";
+      return { key: "test", params: { ts } };
+    }
+    if (/démarré|started|monitoring actif|monitoring active/i.test(m)) {
+      return { key: "started", params: {} };
+    }
+    return null;
+  }
+
+  function formatEventMessage(event) {
+    let key = event.key;
+    let params = event.params || {};
+    if (!key) {
+      const inferred = inferLegacyEvent(event.message);
+      if (inferred) {
+        key = inferred.key;
+        params = inferred.params;
+      }
+    }
+    if (!key) return event.message || "";
+    const template = t("evt_" + key);
+    if (!template || template === "evt_" + key) return event.message || key;
+    return formatTemplate(template, params);
+  }
+
   function ensureShell() {
     if (shellBuilt) return;
     const content = el("content");
@@ -274,7 +323,7 @@
       setText("val-firmware", firmware);
       setText("val-driver", `${driver} (${t("poll")}: ${pollInterval}${t("seconds_unit")})`);
 
-      const eventsSig = JSON.stringify(events);
+      const eventsSig = lang + "|" + JSON.stringify(events);
       if (eventsSig !== lastEventsSig) {
         lastEventsSig = eventsSig;
         let eventsHtml = "";
@@ -284,7 +333,7 @@
           for (const e of events) {
             eventsHtml += `<div class="event-row"><span class="event-ts">${escapeHtml(
               e.ts
-            )}</span>${escapeHtml(e.message)}</div>`;
+            )}</span>${escapeHtml(formatEventMessage(e))}</div>`;
           }
         }
         setHtml("val-events", eventsHtml);
