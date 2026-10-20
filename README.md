@@ -19,6 +19,30 @@ It polls your UPS with `upsc`, shows live status in a simple browser page, store
 - NUT client tools (`upsc` on `PATH`)
 - A reachable NUT device (`upsc <name>` or `upsc <name>@<host>`)
 
+## Docker (one-liner)
+
+Needs network access to a NUT `upsd` (set `UPS_HOST` to that host/IP):
+
+```bash
+docker run -d --name nut-ui --restart unless-stopped \
+  -p 8765:8765 \
+  -e UPS_NAME=eaton \
+  -e UPS_HOST=192.168.1.1 \
+  -e SITE_TITLE="UPS Monitor" \
+  -v nut-ui-data:/data \
+  ghcr.io/elpaul0/nut-ui:latest
+```
+
+Or with Compose (see `docker-compose.yml`):
+
+```bash
+docker compose up -d
+```
+
+Image: [`ghcr.io/elpaul0/nut-ui`](https://github.com/ElPaul0/nut-ui/pkgs/container/nut-ui) (built on every push to `main`).
+
+> Running on a separate Docker host only works if that host can reach `upsd` over the network (`LISTEN` in `upsd.conf` / firewall). On many homelabs NUT stays on the hypervisor; native install is then simpler.
+
 ## Quick start (host install)
 
 ```bash

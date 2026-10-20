@@ -1,0 +1,20 @@
+services:
+  nut-ui:
+    image: ghcr.io/elpaul0/nut-ui:latest
+    container_name: nut-ui
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      UPS_NAME: eaton
+      # Remote NUT server (upsd) — required when not sharing the host NUT socket
+      UPS_HOST: 192.168.1.1
+      SITE_TITLE: UPS Monitor
+      # NTFY_URL: https://ntfy.example.com/ups-alerts
+      # NTFY_USER: ""
+      # NTFY_PASS: ""
+    volumes:
+      - nut-ui-data:/data
+
+volumes:
+  nut-ui-data:
