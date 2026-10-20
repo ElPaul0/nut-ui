@@ -4,15 +4,11 @@ services:
     container_name: nut-ui
     restart: unless-stopped
     ports:
-      - "8765:8765"
+      - "${LISTEN_PORT:-8765}:8765"
+    env_file:
+      - .env
     environment:
-      UPS_NAME: eaton
-      # Remote NUT server (upsd) — required when not sharing the host NUT socket
-      UPS_HOST: 192.168.1.1
-      SITE_TITLE: UPS Monitor
-      # NTFY_URL: https://ntfy.example.com/ups-alerts
-      # NTFY_USER: ""
-      # NTFY_PASS: ""
+      NUT_UI_DB: /data/events.db
     volumes:
       - nut-ui-data:/data
 

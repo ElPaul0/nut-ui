@@ -1,0 +1,17 @@
+[Unit]
+Description=nut-ui — NUT web UI and alerts
+After=network-online.target nut-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nut-ui
+# Persistent config — edit this file, not the git tree
+EnvironmentFile=-/etc/nut-ui/nut-ui.env
+ExecStart=/opt/nut-ui/.venv/bin/python /opt/nut-ui/app.py
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

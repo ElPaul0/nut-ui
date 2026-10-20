@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}" data-theme="{{ default_theme }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ site_title }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script>
+    window.NUT_UI_CONFIG = {
+      defaultLang: {{ default_lang|tojson }},
+      defaultTheme: {{ default_theme|tojson }},
+      defaultRefreshSec: {{ default_refresh_sec|tojson }},
+      siteTitle: {{ site_title|tojson }}
+    };
+    // Apply stored theme ASAP to avoid flash
+    (function () {
+      try {
+        var t = localStorage.getItem("nut-ui-theme") || window.NUT_UI_CONFIG.defaultTheme || "dark";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <h1>🔋 {{ site_title }}</h1>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Theme">
+          <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+        </div>
+        <div class="seg" role="group" aria-label="Language">
+          <button type="button" data-lang-btn="en" aria-pressed="false">EN</button>
+          <button type="button" data-lang-btn="fr" aria-pressed="false">FR</button>
+        </div>
+        <label class="refresh-control">
+          <span id="refreshLabel">Refresh</span>
+          <select id="refreshSelect" aria-label="Refresh interval">
+            <option value="5">5s</option>
+            <option value="10">10s</option>
+            <option value="30">30s</option>
+            <option value="60">60s</option>
+          </select>
+        </label>
+        <button type="button" class="btn" id="testBtn">🧪 Test notification</button>
+      </div>
+    </header>
+
+    <div id="content" class="loading">Loading…</div>
+    <p class="footer-meta">nut-ui · NUT</p>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
